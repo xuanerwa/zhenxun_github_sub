@@ -45,13 +45,12 @@ __plugin_settings__ = {
     "limit_superuser": False,
     "cmd": ["github订阅", "gb订阅", "添加github", "删除github", "查看github"],
 }
-__plugin_configs__ = {
-    "GROUP_GITHUB_SUB_LEVEL": {
-        "value": 5,
-        "help": "群内github订阅需要管理的权限",
-        "default_value": 5,
-    },
-}
+Config.add_plugin_config(
+    "github_sub",
+    "GROUP_GITHUB_SUB_LEVEL",
+    5,
+    help_="群内github订阅需要管理的权限"
+)
 
 Config.add_plugin_config(
     "github_sub",
