@@ -9,6 +9,7 @@ import random
 
 async def get_github_api(sub_type, sub_url, etag=None, token=None):
     headers = {"Accept": "application/vnd.github.v3+json"}
+    token = Config.get_config("github_sub", "GITHUB_TOKEN")
     if token:
         headers['Authorization'] = 'token %s' % token
     elif etag:
@@ -92,7 +93,8 @@ async def get_sub_status(sub_type: str, sub_url: str, etag=None):
                 elif json_response["message"] == "Not Found":
                     logger.error(f"无法找到{sub_url}")
         json_response = [i for i in json_response if i['type'] != 'CreateEvent' and
-                         old_time.replace(tzinfo=None) < datetime.strptime(i['created_at'], '%Y-%m-%dT%H:%M:%SZ') + timedelta(hours=8)]
+                         old_time.replace(tzinfo=None) < datetime.strptime(i['created_at'],
+                                                                           '%Y-%m-%dT%H:%M:%SZ') + timedelta(hours=8)]
         if json_response:
             event_time = datetime.strptime(json_response[0]['created_at'], '%Y-%m-%dT%H:%M:%SZ') + timedelta(hours=8)
             await GitHubSub.update_github_sub(sub_url, update_time=event_time)
