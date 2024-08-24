@@ -4,13 +4,13 @@
 
 ### 使用
 
-添加github ['用户'/'仓库'] [用户名/{owner/repo}]
-删除github [用户名/{owner/repo}]
-查看github
-示例：添加github订阅 用户 HibiKier
-示例：添加gb订阅 仓库 HibiKier/zhenxun_bot
-示例：添加github 用户 HibiKier
-示例：删除gb订阅 HibiKier
+- 添加github ['用户'/'仓库'] [用户名/{owner/repo}]
+- 删除github [用户名/{owner/repo}]
+- 查看github
+- 示例：添加github订阅 用户 HibiKier
+- 示例：添加gb订阅 仓库 HibiKier/zhenxun_bot
+- 示例：添加github 用户 HibiKier
+- 示例：删除gb订阅 HibiKier
 
 ## 更新
 
