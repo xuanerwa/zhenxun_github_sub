@@ -1,9 +1,9 @@
 from .model import GitHubSub
-from configs.config import Config
+from zhenxun.configs.config import Config
 from typing import Optional
 from datetime import datetime, timedelta
-from services.log import logger
-from utils.http_utils import AsyncHttpx
+from zhenxun.services.log import logger
+from zhenxun.utils.http_utils import AsyncHttpx
 import random
 
 

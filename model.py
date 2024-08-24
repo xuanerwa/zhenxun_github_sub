@@ -2,8 +2,8 @@ import re
 from datetime import datetime
 from typing import List, Optional, Tuple
 from tortoise import fields
-from services.db_context import Model
-from services.log import logger
+from zhenxun.services.db_context import Model
+from zhenxun.services.log import logger
 
 
 class GitHubSub(Model):

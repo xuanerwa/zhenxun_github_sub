@@ -1,73 +1,78 @@
-from nonebot import on_command
-from nonebot.typing import T_State
-from nonebot.adapters.onebot.v11 import GroupMessageEvent, Message
+from nonebot.plugin import PluginMetadata
+from nonebot_plugin_alconna import Alconna, Args, on_alconna
+from nonebot_plugin_session import EventSession
 from nonebot.adapters.onebot.v11.permission import GROUP
-from nonebot.adapters.onebot.v11 import (
-    Bot,
-    MessageEvent,
-)
+from nonebot.adapters.onebot.v11 import Bot
+from nonebot.adapters.onebot.v11 import Bot as v11Bot
+from nonebot.adapters.onebot.v12 import Bot as v12Bot
 from .data_source import (
     add_user_sub,
     SubManager,
     get_sub_status
 
 )
-from models.level_user import LevelUser
-from configs.config import Config, NICKNAME
-from utils.utils import scheduler, get_bot
+from zhenxun.configs.config import Config, NICKNAME
+from zhenxun.configs.utils import PluginExtraData, RegisterConfig
+from nonebot_plugin_apscheduler import scheduler
 from typing import Optional
-from services.log import logger
+from zhenxun.services.log import logger
 from nonebot import Driver
-from nonebot.params import CommandArg
 import nonebot
+from zhenxun.utils.message import MessageUtils
+from zhenxun.utils.platform import PlatformUtils
 from .model import GitHubSub
+base_config = Config.get("github_sub")
 
-__zx_plugin_name__ = "github订阅"
-__plugin_usage__ = """
-usage：
-    github新Comment，PR，Issue等提醒
+
+__plugin_meta__ = PluginMetadata(
+    name="github订阅",
+    description="订阅github用户或仓库",
+    usage="""
+    usage：
+        github新Comment，PR，Issue等提醒
     指令：
         添加github ['用户'/'仓库'] [用户名/{owner/repo}]
         删除github [用户名/{owner/repo}]
         查看github
-        示例：添加github订阅用户 HibiKier
-        示例：添加gb订阅仓库 HibiKier/zhenxun_bot
-        示例：添加github用户 yajiwa
-        示例：删除gb订阅 yajiwa
-""".strip()
-__plugin_des__ = "github订阅推送"
-__plugin_cmd__ = ["添加github ['用户'/'仓库'] [用户名/{owner/repo}]", "删除github [用户名/{owner/repo}]", "查看github"]
-__plugin_version__ = 0.5
-__plugin_author__ = "yajiwa"
-__plugin_settings__ = {
-    "level": 5,
-    "default_status": True,
-    "limit_superuser": False,
-    "cmd": ["github订阅", "gb订阅", "添加github", "删除github", "查看github"],
-}
+        示例：添加github订阅 用户 HibiKier
+        示例：添加gb订阅 仓库 HibiKier/zhenxun_bot
+        示例：添加github 用户 HibiKier
+        示例：删除gb订阅 HibiKier
+    """.strip(),
+    extra=PluginExtraData(
+        author="xuanerwa",
+        version="0.1",
+        configs=[
+            RegisterConfig(
+                module="github_sub",
+                key="GITHUB_TOKEN",
+                value=None,
+                help="登陆github获取 https://github.com/settings/tokens/new"
+            ),
+            RegisterConfig(
+                module="github_sub",
+                key="GITHUB_ISSUE",
+                value=True,
+                help="是否不推送Issue",
+                default_value=True,
+                type=bool,
+            ),
+        ],
+        admin_level=base_config.get("GROUP_GITHUB_SUB_LEVEL"),
+    ).dict(),
+)
 Config.add_plugin_config(
     "github_sub",
     "GROUP_GITHUB_SUB_LEVEL",
     5,
-    help_="群内github订阅需要管理的权限"
+    help="github订阅需要的管理员等级",
+    default_value=5,
+    type=int,
 )
 
-Config.add_plugin_config(
-    "github_sub",
-    "GITHUB_TOKEN",
-    None,
-    help_="登陆github获取https://github.com/settings/tokens/new"
-)
-Config.add_plugin_config(
-    "github_sub",
-    "GITHUB_ISSUE",
-    True,
-    help_="是否不推送Issue"
-)
-
-add_sub = on_command("添加github订阅", aliases={"添加github", "添加gb订阅"}, priority=5, permission=GROUP, block=True)
-del_sub = on_command("删除github订阅", aliases={"删除github", "删除gb订阅"}, priority=5, permission=GROUP, block=True)
-show_sub_info = on_command("查看github订阅", aliases={"查看github", "查看gb", "查看gb订阅"}, priority=5, block=True)
+_add_sub_matcher = on_alconna(Alconna("添加github订阅", Args["sub_type", str]["sub_url", str]), aliases={"添加github", "添加gb订阅"}, priority=5, block=True)
+del_sub = on_alconna(Alconna("删除github订阅",Args["sub_url", str]), aliases={"删除github", "删除gb订阅"}, priority=5, block=True)
+show_sub_info = on_alconna(Alconna("查看github订阅"), aliases={"查看github", "查看gb", "查看gb订阅"}, priority=5,block=True)
 
 driver: Driver = nonebot.get_driver()
 
@@ -80,75 +85,47 @@ async def _():
     sub_manager = SubManager()
 
 
-@add_sub.handle()
-async def _(event: MessageEvent, state: T_State, arg: Message = CommandArg()):
-    msg = arg.extract_plain_text().strip().split()
-    if len(msg) < 2:
-        await add_sub.finish("参数不完全，请查看订阅帮助...")
-    sub_type = msg[0]
-    sub_url = msg[-1]
+@_add_sub_matcher.handle()
+async def _(session: EventSession, sub_type: str, sub_url: str):
+    if sub_type == "用户":
+        sub_type_str = "user"
+    elif sub_type == "仓库":
+        sub_type_str = "repository"
+    else:
+        await MessageUtils.build_message("参数错误，第一参数必须为：用户/仓库！").finish()
     sub_url = (sub_url.strip('/')).strip()
-    if isinstance(event, GroupMessageEvent):
-        if not await LevelUser.check_level(
-                event.user_id,
-                event.group_id,
-                Config.get_config("github_sub", "GROUP_GITHUB_SUB_LEVEL"),
-        ):
-            await add_sub.finish(
-                f"您的权限不足，群内订阅的需要 {Config.get_config('github_sub', 'GROUP_GITHUB_SUB_LEVEL')} 级权限..",
-                at_sender=True,
-            )
-        sub_user = f"{event.user_id}:{event.group_id}"
+    gid = session.id3 or session.id2
+    if gid:
+        sub_user = f"{session.id1}:{gid}"
     else:
-        sub_user = f"{event.user_id}"
-    state["sub_type"] = sub_type
-    state["sub_user"] = sub_user
-    if sub_type == "用户" or "仓库":
-        if sub_type == "用户":
-            sub_type_str = "user"
-        else:
-            sub_type_str = "repository"
+        sub_user = f"{session.id1}"
 
-        await add_sub.send(await add_user_sub(sub_type_str, sub_url, sub_user))
-    else:
-        await add_sub.finish("参数错误，第一参数必须为：用户/仓库！")
+    msg = await add_user_sub(sub_type_str, sub_url, sub_user)
+    await MessageUtils.build_message(msg).finish()
 
 
 @del_sub.handle()
-async def _(event: MessageEvent, arg: Message = CommandArg()):
-    msg = arg.extract_plain_text().strip()
-    if not msg:
-        await del_sub.finish("请输入需要删除的用户或仓库", at_sender=True)
-    if isinstance(event, GroupMessageEvent):
-        if not await LevelUser.check_level(
-                event.user_id,
-                event.group_id,
-                Config.get_config("bilibili_sub", "GROUP_BILIBILI_SUB_LEVEL"),
-        ):
-            await add_sub.finish(
-                f"您的权限不足，群内订阅的需要 {Config.get_config('bilibili_sub', 'GROUP_BILIBILI_SUB_LEVEL')} 级权限..",
-                at_sender=True,
-            )
-        sub_user = f"{event.user_id}:{event.group_id}"
+async def _(session: EventSession, sub_url: str):
+    gid = session.id3 or session.id2
+    if gid:
+        sub_user = f"{session.id1}:{gid}"
     else:
-        sub_user = f"{event.user_id}"
-    if await GitHubSub.delete_github_sub(msg, sub_user):
-        await del_sub.send(f"删除github订阅：{msg} 成功...")
+        sub_user = f"{session.id1}"
+
+    if await GitHubSub.delete_github_sub(sub_url, sub_user):
+        await MessageUtils.build_message(f"删除github订阅：{sub_url} 成功...").send()
         logger.info(
-            f"(USER {event.user_id}, GROUP "
-            f"{event.group_id if isinstance(event, GroupMessageEvent) else 'private'})"
+            f"(USER {session.id1}, GROUP "
+            f"{gid if gid else 'private'})"
             f" 删除订阅 {sub_user}"
         )
     else:
-        await del_sub.send(f"删除订阅：{msg} 失败...")
+        await del_sub.send(f"删除订阅：{sub_url} 失败...")
 
 
 @show_sub_info.handle()
-async def _(event: MessageEvent):
-    if isinstance(event, GroupMessageEvent):
-        id_ = f"{event.group_id}"
-    else:
-        id_ = f"{event.user_id}"
+async def _(session: EventSession):
+    id_ = session.id3 or session.id2 or f"{session.id1}"
     data = await GitHubSub.filter(sub_users__contains=id_).all()
     user_rst = ""
     repository_rst = ""
@@ -168,9 +145,9 @@ async def _(event: MessageEvent):
 
     if not user_rst and not repository_rst:
         user_rst = (
-            "该群目前没有任何订阅..." if isinstance(event, GroupMessageEvent) else "您目前没有任何订阅..."
+            "该群目前没有任何订阅..." if session.id3 or session.id2 else "您目前没有任何订阅..."
         )
-    await show_sub_info.send(user_rst + repository_rst)
+    await MessageUtils.build_message(user_rst + repository_rst).send()
 
 
 # 推送
@@ -179,21 +156,22 @@ async def _(event: MessageEvent):
     seconds=1 * 30,
 )
 async def _():
-    bot = get_bot()
-    sub = None
-    if bot:
-        try:
-            await sub_manager.reload_sub_data()
-            sub = await sub_manager.random_sub_data()
-            if sub:
-                logger.info(f"github开始检测：{sub.sub_url}")
-                rst = await get_sub_status(sub.sub_type, sub.sub_url, etag=sub.etag)
-                if isinstance(rst, list):
-                    await send_sub_msg_list(rst, sub, bot)
-                else:
-                    await send_sub_msg(rst, sub, bot)
-        except Exception as e:
-            logger.error(f"github订阅推送发生错误 sub_url：{sub.sub_url if sub else 0} {type(e)}：{e}")
+    bots = nonebot.get_bots()
+    for bot in bots.values():
+        sub = None
+        if bot:
+            try:
+                await sub_manager.reload_sub_data()
+                sub = await sub_manager.random_sub_data()
+                if sub:
+                    logger.info(f"github开始检测：{sub.sub_url}")
+                    rst = await get_sub_status(sub.sub_type, sub.sub_url, etag=sub.etag)
+                    if isinstance(rst, list) and isinstance(bot, (v11Bot, v12Bot)):
+                        await send_sub_msg_list(rst, sub, bot)
+                    else:
+                        await send_sub_msg(rst, sub, bot)
+            except Exception as e:
+                logger.error(f"github订阅推送发生错误 sub_url：{sub.sub_url if sub else 0} {type(e)}：{e}")
 
 
 async def send_sub_msg(rst: str, sub: GitHubSub, bot: Bot):
@@ -207,16 +185,14 @@ async def send_sub_msg(rst: str, sub: GitHubSub, bot: Bot):
         for x in sub.sub_users.split(",")[:-1]:
             try:
                 if ":" in x:
-                    await bot.send_group_msg(
-                        group_id=int(x.split(":")[1]), message=Message(rst)
-                    )
+                    await PlatformUtils.send_message(bot, None, x.split(":")[1], message=rst)
                 else:
-                    await bot.send_private_msg(user_id=int(x), message=Message(rst))
+                    await PlatformUtils.send_message(bot, x, None, message=rst)
             except Exception as e:
                 logger.error(f"github订阅推送发生错误 sub_url：{sub.sub_url} {type(e)}：{e}")
 
 
-async def send_sub_msg_list(rst_list: list, sub: GitHubSub, bot: Bot ):
+async def send_sub_msg_list(rst_list: list, sub: GitHubSub, bot: Bot):
     """
     推送信息
     :param rst_list: 回复列表
