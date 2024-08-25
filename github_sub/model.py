@@ -23,7 +23,7 @@ class GitHubSub(Model):
     class Meta:
         table = "github_sub"
         table_description = "github订阅数据表"
-        unique_together = ("sub_type", "sub_users", "sub_url")
+        unique_together = ("sub_type", "sub_url")
 
     @classmethod
     async def update_github_sub(
