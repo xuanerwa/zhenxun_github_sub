@@ -205,7 +205,7 @@ async def send_sub_msg_list(rst_list: list, sub: GitHubSub, bot: Bot):
                 for img in rst_list:
                     data = {
                         "type": "node",
-                        "data": {"name": f"{BotConfig.nickname}", "uin": f"{bot.self_id}", "content": img},
+                        "data": {"name": f"{BotConfig.self_nickname}", "uin": f"{bot.self_id}", "content": img},
                     }
                     mes_list.append(data)
                 if ":" in x:
