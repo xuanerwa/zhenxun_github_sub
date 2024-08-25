@@ -1,7 +1,6 @@
 from nonebot.plugin import PluginMetadata
 from nonebot_plugin_alconna import Alconna, Args, on_alconna
 from nonebot_plugin_session import EventSession
-from nonebot.adapters.onebot.v11.permission import GROUP
 from nonebot.adapters.onebot.v11 import Bot
 from nonebot.adapters.onebot.v11 import Bot as v11Bot
 from nonebot.adapters.onebot.v12 import Bot as v12Bot
@@ -11,7 +10,7 @@ from .data_source import (
     get_sub_status
 
 )
-from zhenxun.configs.config import Config, NICKNAME
+from zhenxun.configs.config import Config, BotConfig
 from zhenxun.configs.utils import PluginExtraData, RegisterConfig
 from nonebot_plugin_apscheduler import scheduler
 from typing import Optional
@@ -41,7 +40,7 @@ __plugin_meta__ = PluginMetadata(
     """.strip(),
     extra=PluginExtraData(
         author="xuanerwa",
-        version="0.1",
+        version="0.7",
         configs=[
             RegisterConfig(
                 module="github_sub",
@@ -206,7 +205,7 @@ async def send_sub_msg_list(rst_list: list, sub: GitHubSub, bot: Bot):
                 for img in rst_list:
                     data = {
                         "type": "node",
-                        "data": {"name": f"{NICKNAME}", "uin": f"{bot.self_id}", "content": img},
+                        "data": {"name": f"{BotConfig.nickname}", "uin": f"{bot.self_id}", "content": img},
                     }
                     mes_list.append(data)
                 if ":" in x:
