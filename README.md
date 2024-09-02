@@ -4,23 +4,19 @@
 
 ### 使用
 
-- 添加github ['用户'/'仓库'] [用户名/{owner/repo}]
-- 删除github [用户名/{owner/repo}]
-- 查看github
-- 示例：添加github订阅 用户 HibiKier
-- 示例：添加gb订阅 仓库 HibiKier/zhenxun_bot
-- 示例：添加github 用户 HibiKier
-- 示例：删除gb订阅 HibiKier
+添加github ['用户'/'仓库'] [用户名/{owner/repo}]
+删除github [用户名/{owner/repo}]
+查看github
+示例：添加github订阅用户 HibiKier
+示例：添加gb订阅仓库 HibiKier/zhenxun_bot
+示例：添加github用户 HibiKier
+示例：删除gb订阅 HibiKier
 
 ## 更新
 
-**2024/8/25**[v0.7]
+**2023/2/21**[v0.8]
 
-1. 适配最新版真寻
-
-**2024/8/24**[v0.6]
-
-1. 适配最新版真寻
+1. 修复bug，超级用户可以删除群内其他人订阅
 
 **2023/2/21**[v0.5]
 
