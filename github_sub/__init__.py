@@ -42,7 +42,7 @@ __plugin_meta__ = PluginMetadata(
     """.strip(),
     extra=PluginExtraData(
         author="xuanerwa",
-        version="0.8",
+        version="0.9",
         configs=[
             RegisterConfig(
                 module="github_sub",
@@ -61,9 +61,9 @@ __plugin_meta__ = PluginMetadata(
             RegisterConfig(
                 module="github_sub",
                 key="CHECK_API_TIME",
-                value=60,
+                value=30,
                 help="github订阅api间隔(秒)",
-                default_value=60,
+                default_value=30,
                 type=int,
             )
         ],
@@ -168,7 +168,7 @@ async def _(session: EventSession):
 # 推送
 @scheduler.scheduled_job(
     "interval",
-    seconds=base_config.get("CHECK_API_TIME") if base_config.get("CHECK_API_TIME") else 60,
+    seconds=base_config.get("CHECK_API_TIME") if base_config.get("CHECK_TIME") else 30,
 )
 async def _():
     bots = nonebot.get_bots()
@@ -201,7 +201,7 @@ async def send_sub_msg(rst: str, sub: GitHubSub, bot: Bot):
             try:
                 if ":" in x:
                     gid = x.split(":")[1]
-                    if await GroupConsole.is_block_plugin(gid, "github_sub"):
+                    if not await GroupConsole.is_block_plugin(gid, "github_sub"):
                         await PlatformUtils.send_message(bot, None, gid, message=rst)
                 else:
                     await PlatformUtils.send_message(bot, x, None, message=rst)
@@ -228,7 +228,7 @@ async def send_sub_msg_list(rst_list: list, sub: GitHubSub, bot: Bot):
                     mes_list.append(data)
                 if ":" in x:
                     gid = x.split(":")[1]
-                    if await GroupConsole.is_block_plugin(gid, "github_sub"):
+                    if not await GroupConsole.is_block_plugin(gid, "github_sub"):
                         await bot.send_group_forward_msg(
                             group_id=int(x.split(":")[1]), messages=mes_list)
                 else:
