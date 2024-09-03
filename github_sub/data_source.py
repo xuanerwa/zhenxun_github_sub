@@ -36,9 +36,9 @@ async def add_user_sub(sub_type: str, sub_url: str, sub_user: str) -> str:
         if "/" in sub_url:
             sub_url_list = sub_url.split('/')
             if len(sub_url_list) != 2:
-                return f"订阅参数错误，格式为：owner/repo"
+                return "订阅参数错误，格式为：owner/repo"
         else:
-            return f"订阅参数错误，格式为：owner/repo"
+            return "订阅参数错误，格式为：owner/repo"
     try:
         response = await get_github_api(sub_type, sub_url)
         if response.status_code == 403:
@@ -46,7 +46,7 @@ async def add_user_sub(sub_type: str, sub_url: str, sub_user: str) -> str:
         elif response.status_code == 404:
             return f"用户{sub_url}不存在！请重新发送或取消"
     except:
-        return f"请求超时"
+        return "请求超时"
     try:
         if await GitHubSub.update_github_sub(
                 sub_url,
@@ -82,7 +82,7 @@ async def get_sub_status(sub_type: str, sub_url: str, etag=None):
         json_response = response.json()
         if not token:
             new_etag = response.headers['ETag']
-            if etag == None or etag != str(new_etag):
+            if etag is None or etag != str(new_etag):
                 await GitHubSub.update_github_sub(sub_url, etag=str(new_etag))
         if isinstance(json_response, dict):
             if "message" in json_response.keys():
@@ -189,8 +189,8 @@ def generate_plain(event: dict):
         link = event['repo']['name']
         for commit in event['payload']['commits']:
             commits.append(f"· [{commit['author']['name']}] {commit['message']}")
-        resp = (f"----------\n"
-                f"[新 Push]\n"
+        resp = ("----------\n"
+                "[新 Push]\n"
                 + "\n".join(commits) +
                 f"\n"
                 f"提交数：{len(commits)}\n"

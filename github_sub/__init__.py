@@ -1,3 +1,4 @@
+from arclet.alconna import CommandMeta
 from nonebot.plugin import PluginMetadata
 from nonebot_plugin_alconna import Alconna, Args, on_alconna
 from nonebot_plugin_session import EventSession
@@ -19,9 +20,10 @@ from nonebot import Driver
 import nonebot
 from zhenxun.utils.message import MessageUtils
 from zhenxun.utils.platform import PlatformUtils
+from zhenxun.models.group_console import GroupConsole
 from .model import GitHubSub
-base_config = Config.get("github_sub")
 
+base_config = Config.get("github_sub")
 
 __plugin_meta__ = PluginMetadata(
     name="github订阅",
@@ -69,9 +71,12 @@ Config.add_plugin_config(
     type=int,
 )
 
-_add_sub_matcher = on_alconna(Alconna("添加github订阅", Args["sub_type", str]["sub_url", str]), aliases={"添加github", "添加gb订阅"}, priority=5, block=True)
-del_sub = on_alconna(Alconna("删除github订阅",Args["sub_url", str]), aliases={"删除github", "删除gb订阅"}, priority=5, block=True)
-show_sub_info = on_alconna(Alconna("查看github订阅"), aliases={"查看github", "查看gb", "查看gb订阅"}, priority=5,block=True)
+_add_sub_matcher = on_alconna(
+    Alconna("添加github订阅", Args["sub_type", str]["sub_url", str], meta=CommandMeta(compact=True)),
+    aliases={"添加github", "添加gb订阅"}, priority=5, block=True)
+del_sub = on_alconna(Alconna("删除github订阅", Args["sub_url", str], meta=CommandMeta(compact=True)),
+                     aliases={"删除github", "删除gb订阅"}, priority=5, block=True)
+show_sub_info = on_alconna(Alconna("查看github订阅"), aliases={"查看github", "查看gb", "查看gb订阅"}, priority=5, block=True)
 
 driver: Driver = nonebot.get_driver()
 
@@ -104,10 +109,13 @@ async def _(session: EventSession, sub_type: str, sub_url: str):
 
 
 @del_sub.handle()
-async def _(session: EventSession, sub_url: str):
+async def _(bot: Bot,session: EventSession, sub_url: str):
     gid = session.id3 or session.id2
     if gid:
-        sub_user = f"{session.id1}:{gid}"
+        if session.id1 in bot.config.superusers:
+            sub_user = f":{gid}"
+        else:
+            sub_user = f"{session.id1}:{gid}"
     else:
         sub_user = f"{session.id1}"
 
@@ -152,7 +160,7 @@ async def _(session: EventSession):
 # 推送
 @scheduler.scheduled_job(
     "interval",
-    seconds=1 * 30,
+    seconds=2 * 60,
 )
 async def _():
     bots = nonebot.get_bots()
@@ -184,7 +192,9 @@ async def send_sub_msg(rst: str, sub: GitHubSub, bot: Bot):
         for x in sub.sub_users.split(",")[:-1]:
             try:
                 if ":" in x:
-                    await PlatformUtils.send_message(bot, None, x.split(":")[1], message=rst)
+                    gid = x.split(":")[1]
+                    if await GroupConsole.is_block_plugin(gid, "github_sub"):
+                        await PlatformUtils.send_message(bot, None, gid, message=rst)
                 else:
                     await PlatformUtils.send_message(bot, x, None, message=rst)
             except Exception as e:
@@ -209,8 +219,10 @@ async def send_sub_msg_list(rst_list: list, sub: GitHubSub, bot: Bot):
                     }
                     mes_list.append(data)
                 if ":" in x:
-                    await bot.send_group_forward_msg(
-                        group_id=int(x.split(":")[1]), messages=mes_list)
+                    gid = x.split(":")[1]
+                    if await GroupConsole.is_block_plugin(gid, "github_sub"):
+                        await bot.send_group_forward_msg(
+                            group_id=int(x.split(":")[1]), messages=mes_list)
                 else:
                     await bot.send_group_forward_msg(user_id=int(x), messages=mes_list)
             except Exception as e:
