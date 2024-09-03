@@ -42,7 +42,7 @@ __plugin_meta__ = PluginMetadata(
     """.strip(),
     extra=PluginExtraData(
         author="xuanerwa",
-        version="0.7",
+        version="0.8",
         configs=[
             RegisterConfig(
                 module="github_sub",
@@ -58,6 +58,14 @@ __plugin_meta__ = PluginMetadata(
                 default_value=True,
                 type=bool,
             ),
+            RegisterConfig(
+                module="github_sub",
+                key="CHECK_API_TIME",
+                value=60,
+                help="github订阅api间隔(秒)",
+                default_value=60,
+                type=int,
+            )
         ],
         admin_level=base_config.get("GROUP_GITHUB_SUB_LEVEL"),
     ).dict(),
@@ -160,7 +168,7 @@ async def _(session: EventSession):
 # 推送
 @scheduler.scheduled_job(
     "interval",
-    seconds=2 * 60,
+    seconds=base_config.get("CHECK_API_TIME") if base_config.get("CHECK_API_TIME") else 60,
 )
 async def _():
     bots = nonebot.get_bots()

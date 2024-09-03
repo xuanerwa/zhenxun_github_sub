@@ -45,7 +45,7 @@ async def add_user_sub(sub_type: str, sub_url: str, sub_user: str) -> str:
             return f"你无权访问该仓库{sub_url}"
         elif response.status_code == 404:
             return f"用户{sub_url}不存在！请重新发送或取消"
-    except:
+    except Exception:
         return "请求超时"
     try:
         if await GitHubSub.update_github_sub(
@@ -72,7 +72,7 @@ async def get_sub_status(sub_type: str, sub_url: str, etag=None):
     try:
         token = Config.get_config("github_sub", "GITHUB_TOKEN")
         response = await get_github_api(sub_type, sub_url, etag, token)
-    except:
+    except Exception:
         return None
     if response.status_code == 304:
         return None
@@ -102,11 +102,10 @@ async def get_sub_status(sub_type: str, sub_url: str, etag=None):
             for newest_json in json_response:
                 msg = generate_plain(newest_json)
                 if msg:
-                    if sub_type == "user":
-                        star_str = "用户"
-                    else:
-                        star_str = "仓库"
-                    msg = f"{star_str} : {sub_url}\n" + msg + f"----------\n获取时间：{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+                    star_str = "用户" if sub_type == "user" else "仓库"
+                    msg = (f"{star_str}      : {sub_url}\n"
+                        f"{msg}\n"  # 保留 `generate_plain` 函数中的分隔符，不再添加额外的分隔符
+                        f"🕒 获取时间 : {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
                     msg_list.append(msg)
             if len(msg_list) == 1:
                 return msg_list[0]
@@ -121,6 +120,7 @@ def generate_plain(event: dict):
     event_time = (datetime.strptime(event['created_at'], '%Y-%m-%dT%H:%M:%SZ') + timedelta(hours=8)) \
         .strftime('%Y-%m-%d %H:%M:%S')
     resp = None
+
     if event['type'] == 'IssuesEvent':
         if Config.get_config("github_sub", "GITHUB_ISSUE"):
             return None
@@ -131,16 +131,18 @@ def generate_plain(event: dict):
             if body:
                 if len(body) > 100:
                     body = body[:100] + "......"
-                body = body + "\n"
+                body += "\n"
             link = event['payload']['issue']['html_url']
-            resp = (f"----------\n"
-                    f"[新 Issue]\n"
-                    f"#{number} {title}\n"
-                    f"{body}\n"
-                    f"\n"
-                    f"发布人：{actor}\n"
-                    f"时间：{event_time}\n"
-                    f"链接：{link}\n")
+            resp = (f"━━━━━━━━━━━━━━━━━━━━━\n"
+                    f"         [新 Issue]\n"
+                    f"━━━━━━━━━━━━━━━━━━━━━\n"
+                    f"🔖 Issue     : #{number} {title}\n"
+                    f"📝 描述      : {body}\n"
+                    f"👤 发布人    : {actor}\n"
+                    f"🕒 时间      : {event_time}\n"
+                    f"🔗 链接      : {link}\n"
+                    f"━━━━━━━━━━━━━━━━━━━━━")
+
     elif event['type'] == 'IssueCommentEvent':
         if Config.get_config("github_sub", "GITHUB_ISSUE"):
             return None
@@ -151,16 +153,18 @@ def generate_plain(event: dict):
             if body:
                 if len(body) > 100:
                     body = body[:100] + "......"
-                body = body + "\n"
+                body += "\n"
             link = event['payload']['comment']['html_url']
-            resp = (f"----------\n"
-                    f"[新 Comment]\n"
-                    f"#{number} {title}\n"
-                    f"{body}"
-                    f"\n"
-                    f"发布人：{actor}\n"
-                    f"时间：{event_time}\n"
-                    f"链接：{link}\n")
+            resp = (f"━━━━━━━━━━━━━━━━━━━━━\n"
+                    f"       [新 Comment]\n"
+                    f"━━━━━━━━━━━━━━━━━━━━━\n"
+                    f"🔖 Issue     : #{number} {title}\n"
+                    f"💬 评论      : {body}\n"
+                    f"👤 发布人    : {actor}\n"
+                    f"🕒 时间      : {event_time}\n"
+                    f"🔗 链接      : {link}\n"
+                    f"━━━━━━━━━━━━━━━━━━━━━")
+
     elif event['type'] == 'PullRequestEvent':
         if event['payload']['action'] == 'opened':
             title = event['payload']['pull_request']['title']
@@ -169,65 +173,74 @@ def generate_plain(event: dict):
             if body:
                 if len(body) > 100:
                     body = body[:100] + "......"
-                body = body + "\n"
+                body += "\n"
             head = event['payload']['pull_request']['head']['label']
             base = event['payload']['pull_request']['base']['label']
             commits = event['payload']['pull_request']['commits']
             link = event['payload']['pull_request']['html_url']
-            resp = (f"----------\n"
-                    f"[新 PR]\n"
-                    f"#{number} {title}\n"
-                    f"{body}"
-                    f"\n"
-                    f"{head} → {base}\n"
-                    f"提交数：{commits}\n"
-                    f"发布人：{actor}\n"
-                    f"时间：{event_time}\n"
-                    f"链接：{link}\n")
+            resp = (f"━━━━━━━━━━━━━━━━━━━━━\n"
+                    f"         [新 PR]\n"
+                    f"━━━━━━━━━━━━━━━━━━━━━\n"
+                    f"🔖 PR        : #{number} {title}\n"
+                    f"📝 描述      : {body}\n"
+                    f"🔀 分支      : {head} → {base}\n"
+                    f"📑 提交数    : {commits}\n"
+                    f"👤 发布人    : {actor}\n"
+                    f"🕒 时间      : {event_time}\n"
+                    f"🔗 链接      : {link}\n"
+                    f"━━━━━━━━━━━━━━━━━━━━━")
+
     elif event['type'] == 'PushEvent':
         commits = []
         link = event['repo']['name']
         for commit in event['payload']['commits']:
             commits.append(f"· [{commit['author']['name']}] {commit['message']}")
-        resp = ("----------\n"
-                "[新 Push]\n"
-                + "\n".join(commits) +
-                f"\n"
-                f"提交数：{len(commits)}\n"
-                f"发布人：{actor}\n"
-                f"时间：{event_time}\n"
-                f"链接：https://github.com/{link}\n")
+        resp = (f"━━━━━━━━━━━━━━━━━━━━━\n"
+                f"         [新 Push]\n"
+                f"━━━━━━━━━━━━━━━━━━━━━\n"
+                f"📂 项目      : {link}\n"
+                f"📑 提交记录  :\n" +
+                "\n".join(commits) +
+                f"\n📑 提交数    : {len(commits)}\n"
+                f"👤 发布人    : {actor}\n"
+                f"🕒 时间      : {event_time}\n"
+                f"🔗 链接      : https://github.com/{link}\n"
+                f"━━━━━━━━━━━━━━━━━━━━━")
+
     elif event['type'] == 'CommitCommentEvent':
         body = event['payload']['comment']['body']
         if body:
             if len(body) > 100:
                 body = body[:100] + "......"
-            body = body + "\n"
+            body += "\n"
         link = event['payload']['comment']['html_url']
-        resp = (f"----------\n"
-                f"[新 Comment]\n"
-                f"{body}"
-                f"\n"
-                f"发布人：{actor}\n"
-                f"时间：{event_time}\n"
-                f"链接：{link}\n")
+        resp = (f"━━━━━━━━━━━━━━━━━━━━━\n"
+                f"       [新 Comment]\n"
+                f"━━━━━━━━━━━━━━━━━━━━━\n"
+                f"💬 评论      : {body}\n"
+                f"👤 发布人    : {actor}\n"
+                f"🕒 时间      : {event_time}\n"
+                f"🔗 链接      : {link}\n"
+                f"━━━━━━━━━━━━━━━━━━━━━")
 
     elif event['type'] == 'ReleaseEvent':
         body = event['payload']['release']['body']
         if body:
             if len(body) > 200:
                 body = body[:200] + "......"
-            body = body + "\n"
+            body += "\n"
         link = event['payload']['release']['html_url']
         name = event['payload']['release']['name']
-        resp = (f"----------\n"
-                f"[新 Release]\n"
-                f"版本：{name}\n\n"
-                f"{body}"
-                f"\n"
-                f"发布人：{actor}\n"
-                f"时间：{event_time}\n"
-                f"链接：{link}\n")
+        resp = (f"━━━━━━━━━━━━━━━━━━━━━\n"
+                f"      [新 Release]\n"
+                f"━━━━━━━━━━━━━━━━━━━━━\n"
+                f"🔖 版本      : {name}\n"
+                f"📝 描述      : {body}\n"
+                f"👤 发布人    : {actor}\n"
+                f"🕒 时间      : {event_time}\n"
+                f"🔗 链接      : {link}\n"
+                f"━━━━━━━━━━━━━━━━━━━━━")
+
     return resp if resp else None
 
 
