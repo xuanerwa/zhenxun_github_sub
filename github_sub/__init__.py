@@ -168,7 +168,7 @@ async def _(session: EventSession):
 # 推送
 @scheduler.scheduled_job(
     "interval",
-    seconds=base_config.get("CHECK_API_TIME") if base_config.get("CHECK_TIME") else 30,
+    seconds=base_config.get("CHECK_API_TIME") if base_config.get("CHECK_API_TIME") else 30,
 )
 async def _():
     bots = nonebot.get_bots()
